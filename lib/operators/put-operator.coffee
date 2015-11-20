@@ -20,47 +20,50 @@ class Put extends Operator
   #
   # Returns nothing.
   execute: (count=1) ->
-    {text, type} = @vimState.getRegister(@register) or {}
-    return unless text
+    for cursor, i in @editor.getCursors() then do(cursor, i) =>
+      tmp_reg = @register
+      if(i > 0)
+        tmp_reg += i
+      {text, type} = @vimState.getRegister(tmp_reg) or {}
+      return unless text
 
-    textToInsert = _.times(count, -> text).join('')
-
-    selection = @editor.getSelectedBufferRange()
-    if selection.isEmpty()
-      # Clean up some corner cases on the last line of the file
-      if type is 'linewise'
-        textToInsert = textToInsert.replace(/\n$/, '')
-        if @location is 'after' and @onLastRow()
-          textToInsert = "\n#{textToInsert}"
-        else
-          textToInsert = "#{textToInsert}\n"
-
-      if @location is 'after'
+      textToInsert = _.times(count, -> text).join('')
+      selection = cursor.selection;
+      if selection.isEmpty()
+        # Clean up some corner cases on the last line of the file
         if type is 'linewise'
-          if @onLastRow()
-            @editor.moveToEndOfLine()
-
-            originalPosition = @editor.getCursorScreenPosition()
-            originalPosition.row += 1
+          textToInsert = textToInsert.replace(/\n$/, '')
+          if @location is 'after' and @onLastRow()
+            textToInsert = "\n#{textToInsert}"
           else
-            @editor.moveDown()
-        else
-          unless @onLastColumn()
-            @editor.moveRight()
+            textToInsert = "#{textToInsert}\n"
 
-      if type is 'linewise' and not originalPosition?
-        @editor.moveToBeginningOfLine()
-        originalPosition = @editor.getCursorScreenPosition()
+        if @location is 'after'
+          if type is 'linewise'
+            if @onLastRow()
+              cursor.moveToEndOfLine()
 
-    @editor.insertText(textToInsert)
+              originalPosition = cursor.getScreenPosition()
+              originalPosition.row += 1
+            else
+              cursor.moveDown()
+          else
+            unless @onLastColumn()
+              cursor.moveRight()
 
-    if originalPosition?
-      @editor.setCursorScreenPosition(originalPosition)
-      @editor.moveToFirstCharacterOfLine()
+        if type is 'linewise' and not originalPosition?
+          cursor.moveToBeginningOfLine()
+          originalPosition = cursor.getScreenPosition()
 
-    if type isnt 'linewise'
-      @editor.moveLeft()
-    @vimState.activateNormalMode()
+      selection.insertText(textToInsert)
+
+      if originalPosition?
+        cursor.setScreenPosition(originalPosition)
+        cursor.moveToFirstCharacterOfLine()
+
+      if type isnt 'linewise'
+        cursor.moveLeft()
+      @vimState.activateNormalMode()
 
   # Private: Helper to determine if the editor is currently on the last row.
   #

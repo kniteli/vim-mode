@@ -45,13 +45,21 @@ class Operator
   #
   # Returns nothing
   setTextRegister: (register, text) ->
-    if @motion?.isLinewise?()
-      type = 'linewise'
-      if text[-1..] isnt '\n'
-        text += '\n'
-    else
-      type = Utils.copyType(text)
-    @vimState.setRegister(register, {text, type}) unless text is ''
+    #turn single text into array:
+    #treats single text strings and arrays identically
+    text = [].concat text
+
+    for t, i in text then do (t, i) =>
+      tmp_reg = register
+      if @motion?.isLinewise?()
+        type = 'linewise'
+        if t[-1..] isnt '\n'
+          t += '\n'
+      else
+        type = Utils.copyType(t)
+      if(i > 0)
+        tmp_reg += i
+      @vimState.setRegister(tmp_reg, {"text": t, "type": type}) unless t is ''
 
 # Public: Generic class for an operator that requires extra input
 class OperatorWithInput extends Operator
@@ -182,10 +190,13 @@ class Yank extends Operator
     oldTop = @editorElement.getScrollTop()
     oldLeft = @editorElement.getScrollLeft()
     oldLastCursorPosition = @editor.getCursorBufferPosition()
-
     originalPositions = @editor.getCursorBufferPositions()
     if _.contains(@motion.select(count), true)
-      text = @editor.getSelectedText()
+      buffers = @editor.getSelectedBufferRanges()
+      text = []
+      for range in buffers
+        do(range) =>
+          text.push @editor.getTextInBufferRange(range)
       startPositions = _.pluck(@editor.getSelectedBufferRanges(), "start")
       newPositions = for originalPosition, i in originalPositions
         if startPositions[i]
