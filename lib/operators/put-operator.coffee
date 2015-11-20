@@ -14,18 +14,25 @@ class Put extends Operator
     @complete = true
     @register = settings.defaultRegister()
 
-  # Public: Pastes the text in the given register.
+  # Public: Pastes the text in the given register. For multiline
+  # pastes, it will match up the cursors from previous selection
+  # or use the main register for all of them
   #
   # count - The number of times to execute.
   #
+  # TODO: How to handle clearing the register stack on deselect
+  #
   # Returns nothing.
   execute: (count=1) ->
+    {defaultText, type} = @vimState.getRegister(@register) or {};
     @editor.transact 300, () =>
       for cursor, i in @editor.getCursors() then do(cursor, i) =>
-        tmp_reg = @register
+        tempRegister = @register
         if(i > 0)
-          tmp_reg += i
-        {text, type} = @vimState.getRegister(tmp_reg) or {}
+          tempRegister += i
+        {text, type} = @vimState.getRegister(tempRegister) or {}
+        if(!text)
+          text = defaultText
         return unless text
 
         textToInsert = _.times(count, -> text).join('')
